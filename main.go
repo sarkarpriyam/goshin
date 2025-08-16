@@ -39,8 +39,35 @@ type Task struct {
 	description string
 }
 
+func (t *Task) Next() {
+	if t.status == done {
+		t.status = todo
+	} else {
+		t.status++
+	}
+}
+
+/* MAIN MODEL */
+
+type Model struct {
+	lists    []list.Model
+	focused  status
+	err      error
+	loaded   bool
+	quitting bool
+}
+
 func New() *Model {
 	return &Model{}
+}
+
+func (m *Model) MoveToNext() tea.Msg {
+	selectedItem := m.lists[m.focused].SelectedItem()
+	selectedTask := selectedItem.(Task) // convert item to type Task
+	m.lists[selectedTask.status].RemoveItem(m.lists[m.focused].Index())
+	selectedTask.Next()
+	m.lists[selectedTask.status].InsertItem(len(m.lists[selectedTask.status].Items()) - 1, list.Item(selectedTask))
+	return nil
 }
 
 // implement the list.Item interface
@@ -54,16 +81,6 @@ func (t Task) Title() string {
 
 func (t Task) Description() string {
 	return t.description
-}
-
-/* MAIN MODEL */
-
-type Model struct {
-	lists    []list.Model
-	focused  status
-	err      error
-	loaded   bool
-	quitting bool
 }
 
 // TODO: Go to next list
@@ -134,6 +151,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Previous()
 		case "right", "l":
 			m.Next()
+		case "enter":
+			return m, m.MoveToNext
 		}
 	}
 	var cmd tea.Cmd
